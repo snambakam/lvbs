@@ -1,3 +1,7 @@
+
+%global _enable_debug_package 0
+%global debug_package %{nil}
+
 Name:           kernel
 Version:        6.19.6
 Release:        1%{?dist}
