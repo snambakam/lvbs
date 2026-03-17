@@ -18,10 +18,16 @@ prepare_mock_install_build_requires() {
         rpm-build \
         bc \
         bison \
-        flex \
-        elfutils-libelf-devel \
-        openssl-devel \
+        ccache \
         dwarves \
+        elfutils-libelf-devel \
+        flex \
+        gcc \
+        make \
+        ncurses-devel \
+        openssl \
+        openssl-devel \
+        perl \
         rsync
 }
 
