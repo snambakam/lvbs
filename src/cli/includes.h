@@ -1,2 +1,2 @@
 #include <config.h>
-#include <lvbssys.h>
+#include <lvbs-sys.h>

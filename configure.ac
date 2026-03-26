@@ -10,6 +10,7 @@ AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 
 # Check for ioctl headers
+AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([sys/ioctl.h ioctl.h])
 
 # Configure output
