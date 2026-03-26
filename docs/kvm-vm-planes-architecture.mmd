@@ -1,0 +1,89 @@
+graph TB
+    subgraph UserSpace["Userspace (VMM)"]
+        VMM["VMM Process"]
+        KVM_RUN["ioctl(KVM_RUN)"]
+    end
+
+    subgraph SharedState["Shared State (via plane 0 vCPU)"]
+        direction TB
+        RUN["<b>kvm_run</b> (single shared page)<hr/><b>IN:</b> plane (0 or 1)<br/>req_exit_planes bitmask<br/>kvm_valid_regs / kvm_dirty_regs<hr/><b>OUT:</b> exit_reason<br/>plane_event (cross-plane IRQ)<hr/><b>SYNC:</b> kvm_sync_regs<br/>(temp GP/SREG transfer area)"]
+        STAT["<b>kvm_vcpu_stat</b><br/>(shared counters)"]
+        DRING["<b>dirty_ring</b><br/>(shared dirty page tracking)"]
+    end
+
+    subgraph VM["struct kvm (VM-wide)"]
+        direction TB
+        MEMSLOTS["<b>memslots[]</b><br/>Guest Physical Address Space<br/>(shared across all planes)"]
+        IOBUS["<b>I/O Buses</b><br/>MMIO / PIO<br/>(shared)"]
+    end
+
+    subgraph PlaneArray["kvm->planes[]"]
+        direction LR
+        subgraph P0["<b>Plane 0</b><br/>kvm_plane (id=0)"]
+            direction TB
+            P0_VCPU_ARRAY["vcpu_array (xarray)"]
+            P0_APIC_MAP["<b>apic_map</b><br/>(per-plane IRQ routing)"]
+            P0_MEM_ATTR["<b>mem_attr_array</b><br/>(memory attributes)"]
+        end
+        subgraph P1["<b>Plane 1</b><br/>kvm_plane (id=1)"]
+            direction TB
+            P1_VCPU_ARRAY["vcpu_array (xarray)"]
+            P1_APIC_MAP["<b>apic_map</b><br/>(per-plane IRQ routing)"]
+            P1_MEM_ATTR["<b>mem_attr_array</b><br/>(memory attributes)"]
+        end
+    end
+
+    subgraph VCPUs["Per-Plane vCPU Register State"]
+        direction LR
+        subgraph VCPU0["<b>Plane 0 vCPU</b><br/>(vcpu->plane = 0)"]
+            direction TB
+            ARCH0["<b>kvm_vcpu_arch</b><hr/><b>GP Regs:</b> RAX RBX RCX RDX<br/>RSI RDI RSP RBP R8-R15 RIP<hr/><b>Control:</b> CR0 CR2 CR3 CR4 CR8<br/>EFER XCR0 IA32_XSS<hr/><b>Segments:</b> CS DS ES FS GS SS<br/>GDT IDT LDT TR<hr/><b>Debug:</b> DB[] DR6 DR7<hr/><b>MSRs:</b> PAT STAR LSTAR<br/>TSC_OFFSET PMU ..."]
+            FPU0["<b>guest_fpu</b><br/>(SSE/AVX/AMX state)<br/>— own copy by default —"]
+            VMCS0["<b>VMCS / VMCB</b><br/>(hardware VM state)<br/>— always separate —"]
+            LAPIC0["<b>LAPIC</b><br/>APIC registers<br/>Timer, IRR, ISR"]
+            MMU0["<b>MMU contexts</b><br/>Page tables / EPT"]
+        end
+
+        subgraph VCPU1["<b>Plane 1 vCPU</b><br/>(vcpu->plane = 1)"]
+            direction TB
+            ARCH1["<b>kvm_vcpu_arch</b><hr/><b>GP Regs:</b> RAX RBX RCX RDX<br/>RSI RDI RSP RBP R8-R15 RIP<hr/><b>Control:</b> CR0 CR2 CR3 CR4 CR8<br/>EFER XCR0 IA32_XSS<hr/><b>Segments:</b> CS DS ES FS GS SS<br/>GDT IDT LDT TR<hr/><b>Debug:</b> DB[] DR6 DR7<hr/><b>MSRs:</b> PAT STAR LSTAR<br/>TSC_OFFSET PMU ..."]
+            FPU1["<b>guest_fpu</b><br/>(SSE/AVX/AMX state)<br/>— own copy by default —"]
+            VMCS1["<b>VMCS / VMCB</b><br/>(hardware VM state)<br/>— always separate —"]
+            LAPIC1["<b>LAPIC</b><br/>APIC registers<br/>Timer, IRR, ISR"]
+            MMU1["<b>MMU contexts</b><br/>Page tables / EPT"]
+        end
+    end
+
+    VMM --> KVM_RUN
+    KVM_RUN --> RUN
+
+    RUN -->|"run->plane == 0<br/>sync_regs()"| ARCH0
+    RUN -->|"run->plane == 1<br/>sync_regs()"| ARCH1
+    ARCH0 -->|"store_regs()"| RUN
+    ARCH1 -->|"store_regs()"| RUN
+
+    VCPU0 --- STAT
+    VCPU0 --- DRING
+    VCPU1 -.->|"points to plane0"| STAT
+    VCPU1 -.->|"points to plane0"| DRING
+
+    P0_VCPU_ARRAY --> VCPU0
+    P1_VCPU_ARRAY --> VCPU1
+
+    VCPU0 --> MEMSLOTS
+    VCPU1 --> MEMSLOTS
+
+    LAPIC0 --> P0_APIC_MAP
+    LAPIC1 --> P1_APIC_MAP
+
+    classDef shared fill:#4a9eff,stroke:#333,color:#fff
+    classDef perplane0 fill:#2ecc71,stroke:#333,color:#fff
+    classDef perplane1 fill:#e67e22,stroke:#333,color:#fff
+    classDef vmwide fill:#9b59b6,stroke:#333,color:#fff
+    classDef user fill:#95a5a6,stroke:#333,color:#fff
+
+    class RUN,STAT,DRING shared
+    class ARCH0,FPU0,VMCS0,LAPIC0,MMU0,P0_APIC_MAP,P0_MEM_ATTR perplane0
+    class ARCH1,FPU1,VMCS1,LAPIC1,MMU1,P1_APIC_MAP,P1_MEM_ATTR perplane1
+    class MEMSLOTS,IOBUS vmwide
+    class VMM,KVM_RUN user

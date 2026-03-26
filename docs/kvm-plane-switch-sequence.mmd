@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant VMM as Userspace VMM
+    participant KR as kvm_run<br/>(shared page)
+    participant P0V as Plane 0 vCPU<br/>kvm_vcpu_arch
+    participant P1V as Plane 1 vCPU<br/>kvm_vcpu_arch
+    participant HW as CPU Hardware<br/>VMCS/VMCB
+
+    Note over VMM,HW: === Run Plane 0 ===
+    VMM->>KR: run->plane = 0
+    VMM->>KR: ioctl(KVM_RUN)
+    KR->>P0V: sync_regs()<br/>kvm_run.s.regs → arch regs
+    P0V->>HW: VMLAUNCH/VMRESUME<br/>(plane 0 VMCS)
+    HW-->>P0V: VM-Exit
+    P0V->>KR: store_regs()<br/>arch regs → kvm_run.s.regs
+    KR-->>VMM: exit_reason
+
+    Note over P0V: Plane 0 register state<br/>preserved in its own<br/>kvm_vcpu_arch
+
+    Note over VMM,HW: === Switch to Plane 1 ===
+    VMM->>KR: run->plane = 1<br/>req_exit_planes = BIT(0)
+    VMM->>KR: ioctl(KVM_RUN)
+
+    Note over KR,P1V: kvm_arch_vcpu_ioctl_run()<br/>reads run->plane == 1<br/>gets plane 1 vCPU via<br/>kvm_get_plane_vcpu()
+
+    KR->>P1V: sync_regs()<br/>kvm_run.s.regs → arch regs
+    P1V->>HW: VMLAUNCH/VMRESUME<br/>(plane 1 VMCS)
+    HW-->>P1V: VM-Exit
+
+    Note over P1V: Plane 1 register state<br/>preserved in its own<br/>kvm_vcpu_arch
+
+    P1V->>KR: store_regs()<br/>arch regs → kvm_run.s.regs
+    KR-->>VMM: exit_reason
+
+    Note over VMM,HW: === Cross-Plane Interrupt ===
+    VMM->>KR: run->plane = 1<br/>req_exit_planes = BIT(0)
+    VMM->>KR: ioctl(KVM_RUN)
+    KR->>P1V: sync_regs()
+    P1V->>HW: VMRESUME (plane 1)
+
+    Note over P0V: IRQ arrives for plane 0<br/>irr_pending_planes |= BIT(0)<br/>KVM_REQ_PLANE_INTERRUPT
+
+    HW-->>P1V: VM-Exit (plane interrupt)
+    P1V->>KR: exit_reason = KVM_EXIT_PLANE_EVENT<br/>plane_event.target = BIT(0)
+    KR-->>VMM: KVM_EXIT_PLANE_EVENT
+
+    Note over VMM: VMM switches to plane 0<br/>to handle interrupt
+
+    VMM->>KR: run->plane = 0
+    VMM->>KR: ioctl(KVM_RUN)
+    KR->>P0V: sync_regs()<br/>plane 0 regs restored
+    P0V->>HW: VMRESUME (plane 0 VMCS)
