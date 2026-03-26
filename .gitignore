@@ -8,7 +8,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -221,6 +220,12 @@ install-sh
 ltmain.sh
 m4
 missing
+
+build/Makefile
+build/config.status
+build/include
+build/libtool
+build/src
 
 include/config.h.in
 include/config.h.in~
