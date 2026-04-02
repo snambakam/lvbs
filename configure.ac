@@ -13,6 +13,32 @@ AC_PROG_LIBTOOL
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([sys/ioctl.h ioctl.h])
 
+# Jansson
+
+AC_ARG_WITH([jansson],
+    [AC_HELP_STRING([--with-jansson=<dir>],
+                    [use jansson binaries rooted at prefix <dir>])],
+    [
+        JANSSON_BASE_PATH="$withval"
+    ],
+    [
+        JANSSON_BASE_PATH="/usr"
+    ])
+
+JANSSON_INCLUDES="-I$JANSSON_BASE_PATH/include"
+JANSSON_LDFLAGS="-L$JANSSON_BASE_PATH/lib"
+
+AC_CHECK_HEADERS(jansson.h)
+AC_SUBST(JANSSON_BASE_PATH)
+AC_SUBST(JANSSON_INCLUDES)
+AC_SUBST(JANSSON_LDFLAGS)
+
+AC_CHECK_LIB([jansson],
+    [json_object],
+    [JANSSON_LIBS="-ljansson"],
+    [],
+    [$JANSSON_LDFLAGS])
+
 # Configure output
 AC_CONFIG_FILES([
     Makefile
