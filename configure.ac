@@ -10,8 +10,11 @@ AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 
 # Check for ioctl headers
-AC_CHECK_HEADERS([stdint.h])
-AC_CHECK_HEADERS([sys/ioctl.h ioctl.h])
+AC_CHECK_HEADERS([errno.h])
+AC_CHECK_HEADERS([stdint.h string.h stdio.h])
+AC_CHECK_HEADERS([unistd.h sys/ioctl.h ioctl.h fcntl.h])
+AC_CHECK_HEADERS([sys/mman.h])
+AC_CHECK_HEADERS([linux/kvm.h])
 
 # Jansson
 
