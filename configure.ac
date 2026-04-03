@@ -10,7 +10,7 @@ AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 
 # Check for ioctl headers
-AC_CHECK_HEADERS([errno.h])
+AC_CHECK_HEADERS([limits.h errno.h])
 AC_CHECK_HEADERS([stdint.h string.h stdio.h])
 AC_CHECK_HEADERS([unistd.h sys/ioctl.h ioctl.h fcntl.h])
 AC_CHECK_HEADERS([sys/mman.h])

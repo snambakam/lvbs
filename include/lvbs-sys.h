@@ -1,6 +1,10 @@
 #ifndef __LVBSSYS_H__
 #define __LVBSSYS_H__
 
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
