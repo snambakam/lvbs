@@ -1,0 +1,28 @@
+#!/bin/bash
+set -eux
+
+CHROOT_DESTDIR=/buildroot
+
+# Ensure minimal NSS files exist (you already needed this earlier)
+mkdir -p "$CHROOT_DESTDIR/usr/bin" \
+         "$CHROOT_DESTDIR/etc" \
+         "$CHROOT_DESTDIR/var/lib/rpm-state"
+
+mkdir -p $CHROOT_DESTDIR/etc
+
+cat > $CHROOT_DESTDIR/etc/passwd <<EOF
+root:x:0:0:root:/root:/bin/bash
+EOF
+
+cat > $CHROOT_DESTDIR/etc/group <<EOF
+root:x:0:
+EOF
+
+cat > $CHROOT_DESTDIR/etc/shadow <<EOF
+root:*:19000:0:99999:7:::
+EOF
+
+cat > $CHROOT_DESTDIR/etc/gshadow <<EOF
+root:*::
+EOF
+

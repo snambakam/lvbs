@@ -1,0 +1,7 @@
+distribution/image
+distribution/image.efi
+distribution/image.initrd
+distribution/image.raw
+distribution/image.vmlinuz
+initrd/image
+initrd/image.cpio.zst
