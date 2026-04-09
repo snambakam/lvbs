@@ -3,5 +3,6 @@ distribution/image.efi
 distribution/image.initrd
 distribution/image.raw
 distribution/image.vmlinuz
+distribution/final
 initrd/image
 initrd/image.cpio.zst

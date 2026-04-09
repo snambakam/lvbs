@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -eux
+
+groupadd -r messagebus || true
+useradd \
+    -r \
+    -g messagebus \
+    -d / \
+    -s /usr/sbin/nologin \
+    -c "D-Bus System Message Bus" \
+    messagebus || true
+
+systemd-firstboot \
+    --timezone=UTC \
+    --locale=en_US.UTF-8 \
+    --hostname=azurelinux
+
+ssh-keygen -A
+
+# Disable cloud-init networking for local KVM images
+
+cat >/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg <<'EOF'
+network:
+  config: disabled
+EOF
+

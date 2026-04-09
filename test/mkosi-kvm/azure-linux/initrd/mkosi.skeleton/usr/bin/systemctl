@@ -1,0 +1,5 @@
+
+#!/bin/sh
+# Stub systemctl for image build-time RPM %post scriptlets.
+# No systemd is running in an installroot, so just no-op.
+exit 0
