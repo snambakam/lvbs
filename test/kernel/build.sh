@@ -15,8 +15,8 @@ build() {
 }
 
 install() {
+	sudo make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" modules_install
 	sudo make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" install
-	sudo make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" install_modules
 }
 
 #
