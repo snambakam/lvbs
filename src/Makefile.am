@@ -1,1 +1,3 @@
-SUBDIRS = cli
+SUBDIRS = \
+	loader \
+	cli

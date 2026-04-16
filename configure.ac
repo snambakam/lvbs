@@ -46,6 +46,7 @@ AC_CHECK_LIB([jansson],
 AC_CONFIG_FILES([
     Makefile
     src/Makefile
+    src/loader/Makefile
     src/cli/Makefile
 ])
 AC_OUTPUT
