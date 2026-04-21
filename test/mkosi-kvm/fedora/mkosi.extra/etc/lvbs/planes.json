@@ -1,0 +1,20 @@
+{
+    "planes": [
+        {
+            "plane_id": 0,
+            "kernel": "/usr/lib/lvbs/vtl0/vmlinuz",
+            "kernel_type": "bzImage",
+            "boot_vcpus": 2,
+            "max_vcpus": 2
+        },
+        {
+            "plane_id": 1,
+            "kernel": "/usr/lib/lvbs/vtl1/vmlinux",
+            "kernel_type": "vmlinux",
+            "loader": "/usr/lib/lvbs/vtl1/loader.elf",
+            "boot_vcpus": 1,
+            "max_vcpus": 1,
+            "load_offset": "0x50000000"
+        }
+    ]
+}
