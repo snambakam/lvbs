@@ -2,10 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IMAGE_DIR="$SCRIPT_DIR/../image"
 
-PLANE0_KERNEL_DEFAULT="$SCRIPT_DIR/fedora-kvm.vmlinuz"
-PLANE0_INITRD_DEFAULT="$SCRIPT_DIR/fedora-kvm.initrd"
-PLANE0_DISK_DEFAULT="$SCRIPT_DIR/fedora-kvm.raw"
+PLANE0_KERNEL_DEFAULT="$IMAGE_DIR/fedora-kvm.vmlinuz"
+PLANE0_INITRD_DEFAULT="$IMAGE_DIR/fedora-kvm.initrd"
+PLANE0_DISK_DEFAULT="$IMAGE_DIR/fedora-kvm.raw"
 PLANE1_SHIM_MAKE_DIR_DEFAULT="$SCRIPT_DIR/../../../build/src/loader"
 PLANE1_SHIM_ELF_DEFAULT="$PLANE1_SHIM_MAKE_DIR_DEFAULT/lvbs-vtl1-pvh-shim.elf"
 PLANE1_KERNEL_DEFAULT="$PLANE1_SHIM_ELF_DEFAULT"

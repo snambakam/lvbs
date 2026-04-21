@@ -2,10 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IMAGE_DIR="$SCRIPT_DIR/../image"
 
-PLANE0_KERNEL="${PLANE0_KERNEL:-$SCRIPT_DIR/fedora-kvm.vmlinuz}"
-PLANE0_INITRD="${PLANE0_INITRD:-$SCRIPT_DIR/fedora-kvm.initrd}"
-PLANE0_DISK="${PLANE0_DISK:-$SCRIPT_DIR/fedora-kvm.raw}"
+PLANE0_KERNEL="${PLANE0_KERNEL:-$IMAGE_DIR/fedora-kvm.vmlinuz}"
+PLANE0_INITRD="${PLANE0_INITRD:-$IMAGE_DIR/fedora-kvm.initrd}"
+PLANE0_DISK="${PLANE0_DISK:-$IMAGE_DIR/fedora-kvm.raw}"
 PLANE0_BOOT_VCPUS="${PLANE0_BOOT_VCPUS:-2}"
 PLANE0_MAX_VCPUS="${PLANE0_MAX_VCPUS:-2}"
 ENABLE_PLANE1="${ENABLE_PLANE1:-1}"

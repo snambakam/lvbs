@@ -3,13 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PLANE0_DISK="${PLANE0_DISK:-$SCRIPT_DIR/fedora-kvm.raw}"
+IMAGE_DIR="$SCRIPT_DIR/../image"
+
+PLANE0_DISK="${PLANE0_DISK:-$IMAGE_DIR/fedora-kvm.raw}"
 ENABLE_PLANES="${ENABLE_PLANES:-1}"
 MEMORY_SIZE="${MEMORY_SIZE:-2G}"
 SMP="${SMP:-3}"
 SERIAL_LOG_FILE="${SERIAL_LOG_FILE:-/tmp/plane-serial.log}"
 BIOS="${BIOS:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
-OVMF_VARS="${OVMF_VARS:-$SCRIPT_DIR/OVMF_VARS_4M.fd}"
+OVMF_VARS="${OVMF_VARS:-$IMAGE_DIR/OVMF_VARS_4M.fd}"
 
 for required_file in "$PLANE0_DISK" "$BIOS" "$OVMF_VARS"; do
     if [[ ! -f "$required_file" ]]; then
