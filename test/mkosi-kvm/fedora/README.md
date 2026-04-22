@@ -20,10 +20,46 @@ The UKI will contain the following artifacts:
 1. Firmware (UEFI) verifies boot stub
 2. Boot stub verifies UKI
 3. Boot stub load Kernel 1 into Plane 0
-4. Before launching the user space
-    1. kexec into the (Secure) Kernel 2 into Plane 1
-    2. Alternatively, use a small boot loader
-5. Launch userspace associated with Plane 0 kernel
+
+    Minimal bring-up
+
+    1. CPU, memory, ACPI, SMP setup
+    2. No modules, no userspace, no dynamic code execution
+
+    Hypervisor interaction
+
+    1. Enable VTLs/VM Planes via. hypercalls
+    2. Reserve memory regions for VTL1
+
+    VTL1 secure staging
+    
+    1. Extract the VTL1 kernel from initrd
+    2. Verify authenticity (signature hash, policy)
+
+    Transfer of control
+
+    1. Enter the VTL1 execution context
+    2. Hand off CPU(s) to the VTL1 secure kernel
+
+    Once booted, VTL1:
+
+    1. Completes its own kernel initialization
+    2. Applies immutable protections, including:
+        * Kernel text and rodata protections
+        * Page permission enforcement
+        * Control register locking
+    3. Establishes policy for authenticated operations
+        * Module loading
+        * Test patching / livepatch
+        * kexec
+
+    After protections are in place, VTL1 signals the end of its boot and only authenticated transitions from VTL0 are permitted thereafter.
+
+    Return to VTL0
+
+    1. VTL0 resumes normal boot
+    2. init and userspace are started
+    3. All sensitive operations are mediated by VTL1 through defined interfaces
 
 Notes:
 
