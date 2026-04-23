@@ -34,7 +34,7 @@ Hardware supported Mode Based Execution Control (MBEC) splits the EPT execute pe
     * With VHE, the host runs at EL2 with improved performance.
 * The guest kernel runs at EL1
 
-** TrustZone
+## TrustZone
 
 The Arm TrustZone-capable processors start executing in secure state on power-on. This means all software runs in secure mode unless the boot loader changes anything. 
 
