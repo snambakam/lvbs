@@ -45,7 +45,7 @@ All of these profiles support the same kernel specified in the .linux section of
 
 ## Conclusion
 
-Multiple kernels to be loaded into different VM Planes, must be contained in the initrd.
+Additional kernels to be loaded into higher VM Planes, must be contained in the initrd.
 
 ## References
 
