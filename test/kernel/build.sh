@@ -9,6 +9,11 @@ build() {
 		cp $LINUX_KERNEL_CONFIG "$BUILD_ROOT/.config"
 	fi
 
+	if ! grep -q "^CONFIG_VM_PLANES=y" "$BUILD_ROOT/.config"; then
+		sed -i '/^# CONFIG_VM_PLANES is not set/d' "$BUILD_ROOT/.config"
+		echo "CONFIG_VM_PLANES=y" >> "$BUILD_ROOT/.config"
+	fi
+
 	make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" olddefconfig
 	make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" -j$(nproc)
 	make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" -j$(nproc) modules
