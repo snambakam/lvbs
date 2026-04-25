@@ -1,43 +1,15 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# Finalize image build: configure systemd-boot for UKI layout and VTL0/VTL1 plane support
-# VTL0: compressed bzImage kernel
-# VTL1: uncompressed vmlinux kernel
+# Finalize image build: configure systemd-boot for UKI layout and VTL0/VTL1 plane support.
+# VTL1 kernel payload is staged under /boot for initrd embedding.
 
 echo "========== FINALIZATION INSTRUMENTATION =========="
 echo "[INSTRUMENTATION] Finalizing image with VTL0/VTL1 plane support"
 
-PLANES_CONF=/etc/lvbs/planes.conf
-DEFAULT_VTL0_KERNEL=/usr/lib/lvbs/vtl0/vmlinuz
-DEFAULT_VTL1_KERNEL=/usr/lib/lvbs/vtl1/vmlinux
-DEFAULT_VTL1_LOADER=/usr/lib/lvbs/vtl1/loader.elf
-VTL0_KERNEL="$DEFAULT_VTL0_KERNEL"
-VTL1_KERNEL="$DEFAULT_VTL1_KERNEL"
-VTL1_LOADER="$DEFAULT_VTL1_LOADER"
+VTL1_KERNEL="/boot/plane-1/vmlinux"
 
-if [ -f "$PLANES_CONF" ]; then
-	echo "[INSTRUMENTATION] Loading kernel layout from $PLANES_CONF"
-	# shellcheck disable=SC1090
-	source "$PLANES_CONF"
-	VTL0_KERNEL="${LVBS_VTL0_KERNEL:-$DEFAULT_VTL0_KERNEL}"
-	VTL1_KERNEL="${LVBS_VTL1_KERNEL:-$DEFAULT_VTL1_KERNEL}"
-	VTL1_LOADER="${LVBS_VTL1_LOADER:-$DEFAULT_VTL1_LOADER}"
-else
-	echo "[WARNING] planes.conf not found at $PLANES_CONF; using default kernel paths"
-fi
-
-echo "[INSTRUMENTATION] Checking kernel availability:"
-
-# Check VTL0 kernel (compressed bzImage)
-if [ ! -f "$VTL0_KERNEL" ]; then
-	echo "[ERROR] VTL0 kernel (bzImage) NOT found at $VTL0_KERNEL"
-	exit 1
-else
-	echo "[SUCCESS] VTL0 kernel (bzImage) found at $VTL0_KERNEL"
-	echo "  Size: $(stat -c%s "$VTL0_KERNEL") bytes"
-	echo "  SHA256: $(sha256sum "$VTL0_KERNEL" | awk '{print $1}')"
-fi
+echo "[INSTRUMENTATION] Checking plane kernel payload availability:"
 
 # Check VTL1 kernel (uncompressed vmlinux)
 if [ ! -f "$VTL1_KERNEL" ]; then
@@ -46,19 +18,8 @@ if [ ! -f "$VTL1_KERNEL" ]; then
 else
 	echo "[SUCCESS] VTL1 kernel (vmlinux - uncompressed) found at $VTL1_KERNEL"
 	echo "  Size: $(stat -c%s "$VTL1_KERNEL") bytes"
-	echo "  SHA256: $(sha256sum "$VTL1_KERNEL" | awk '{print $1}')"
+	echo "  SHA256: $(sha256sum "$VTL1_KERNEL" | cut -d' ' -f1)"
 fi
-
-# Check VTL1 loader (prebuilt ELF)
-if [ ! -f "$VTL1_LOADER" ]; then
-	echo "[ERROR] VTL1 loader ELF NOT found at $VTL1_LOADER"
-	exit 1
-else
-	echo "[SUCCESS] VTL1 loader ELF found at $VTL1_LOADER"
-	echo "  Size: $(stat -c%s "$VTL1_LOADER") bytes"
-	echo "  SHA256: $(sha256sum "$VTL1_LOADER" | awk '{print $1}')"
-fi
-
 # Create kernel install configuration for UKI layout
 mkdir -p /etc/kernel
 cat > /etc/kernel/install.conf <<'EOF'
@@ -73,19 +34,8 @@ EOF
 echo "[INSTRUMENTATION] Kernel command line configured:"
 echo "  Content: $(cat /etc/kernel/cmdline)"
 
-echo "[INSTRUMENTATION] Checking planes configuration:"
-if [ -f "$PLANES_CONF" ]; then
-	echo "[SUCCESS] planes.conf found"
-	cat "$PLANES_CONF"
-	echo "[INSTRUMENTATION] VTL1 target plane: ${LVBS_VTL1_TARGET_PLANE:-unset}"
-else
-	echo "[WARNING] planes.conf not found at $PLANES_CONF"
-fi
-
 echo ""
 echo "========== FINALIZATION COMPLETE =========="
 echo "[INSTRUMENTATION] Image finalization complete:"
-echo "  VTL0 kernel (bzImage): $VTL0_KERNEL"
-echo "  VTL1 kernel (vmlinux): $VTL1_KERNEL"
-echo "  VTL1 loader (ELF): $VTL1_LOADER"
+echo "  VTL1 kernel payload (vmlinux): $VTL1_KERNEL"
 echo "[INSTRUMENTATION] VTL0 kernel will verify VTL1 kernel SHA256, place it into Plane 1, and launch it via hypercall"
