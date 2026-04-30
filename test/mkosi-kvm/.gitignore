@@ -1,4 +1,4 @@
-OVMF_VARS_4M.fd
+OVMF_VARS.fd
 fedora/image/fedora-kvm*
 fedora/image/mkosi.extra/boot
 fedora/image/mkosi.extra/config-vm-planes

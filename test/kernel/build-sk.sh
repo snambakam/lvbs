@@ -37,6 +37,24 @@ set_kconfig_bool CONFIG_KVM_GUEST y
 set_kconfig_bool CONFIG_PVH y
 set_kconfig_bool CONFIG_XEN_PVH y
 
+# Embed a minimal initramfs so Plane 1 can boot without an external rootfs.
+# The initramfs contains a statically linked /init that keeps the kernel running.
+INITRAMFS_DIR="$SCRIPTS_DIR/initramfs-sk"
+mkdir -p "$INITRAMFS_DIR"/{dev,proc,sys}
+
+# Build a static init binary (no libc dependency)
+gcc -nostdlib -static -o "$INITRAMFS_DIR/init" "$INITRAMFS_DIR/init.c"
+if [ $? -ne 0 ]; then
+    echo "[build-sk] Failed to compile static init"
+    exit 1
+fi
+
+set_kconfig_bool CONFIG_BLK_DEV_INITRD y
+sed -i \
+    -e '/^CONFIG_INITRAMFS_SOURCE=.*/d' \
+    "$BUILD_ROOT/.config"
+echo "CONFIG_INITRAMFS_SOURCE=\"$INITRAMFS_DIR\"" >> "$BUILD_ROOT/.config"
+
 make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" olddefconfig
 
 make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" -j$(nproc)
