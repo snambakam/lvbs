@@ -26,8 +26,12 @@ VTL1_TARGET_PLANE_DEFAULT="1"
 VTL1_TARGET_PLANE="${VTL1_TARGET_PLANE:-$VTL1_TARGET_PLANE_DEFAULT}"
 VTL1_VCPU_COUNT_DEFAULT="1"
 VTL1_VCPU_COUNT="${VTL1_VCPU_COUNT:-$VTL1_VCPU_COUNT_DEFAULT}"
-VTL1_MEMORY_SIZE_DEFAULT="0x02000000"
+VTL1_MEMORY_SIZE_DEFAULT="0x40000000"
 VTL1_MEMORY_SIZE="${VTL1_MEMORY_SIZE:-$VTL1_MEMORY_SIZE_DEFAULT}"
+VTL1_CMDLINE_DEFAULT="earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 loglevel=7 ignore_loglevel nosmp rdinit=/init"
+# Plane 1 cmdline is sealed into config-vm-planes (inside the UKI initrd).
+# Keep this build-time constant here so there is no runtime override path.
+VTL1_CMDLINE="$VTL1_CMDLINE_DEFAULT"
 
 VTL1_INITRD_DEST_REL="boot/plane-${VTL1_TARGET_PLANE}/vmlinux"
 CONFIG_VM_PLANES_REL="config-vm-planes"
@@ -75,7 +79,63 @@ cp -f "$VTL1_KERNEL_SRC" "$MKOSI_EXTRA_DIR/$VTL1_INITRD_DEST_REL"
 
 echo "Installing VTL0 kernel modules into mkosi.extra for UKI initrd generation..."
 make -s -C "$LINUX_SRC_ROOT" O="$VTL0_BUILD_DIR" \
-	INSTALL_MOD_PATH="$MKOSI_EXTRA_DIR/usr" modules_install
+	INSTALL_MOD_PATH="$MKOSI_EXTRA_DIR/usr" \
+	INSTALL_MOD_STRIP=1 \
+	modules_install
+
+# Drop source/build symlinks from the staged tree; they are not needed in-image.
+rm -f "$MKOSI_EXTRA_DIR/usr/lib/modules/$VTL0_KREL/build"
+rm -f "$MKOSI_EXTRA_DIR/usr/lib/modules/$VTL0_KREL/source"
+
+# Prune staged modules to only KVM-essential drivers to keep initrd small.
+# Without this, the full module tree (~580 MB) bloats the UKI beyond what
+# OVMF can load into guest RAM.
+MODULES_KERNEL_DIR="$MKOSI_EXTRA_DIR/usr/lib/modules/$VTL0_KREL/kernel"
+KEEP_MODULES_TMP="$(mktemp -d)"
+
+for mod in \
+	drivers/virtio \
+	drivers/block/virtio_blk.ko \
+	drivers/scsi/virtio_scsi.ko \
+	drivers/net/virtio_net.ko \
+	drivers/char/virtio_console.ko \
+	drivers/ata/ahci.ko \
+	drivers/ata/libahci.ko \
+	drivers/ata/ata_piix.ko \
+	drivers/ata/libata.ko \
+	drivers/scsi/sd_mod.ko \
+	drivers/scsi/scsi_mod.ko \
+	drivers/net/ethernet/intel/e1000 \
+	drivers/net/ethernet/intel/e1000e \
+	fs/ext4 \
+	fs/fat \
+	fs/vfat \
+	fs/xfs \
+	fs/jbd2 \
+	fs/nls \
+; do
+	src="$MODULES_KERNEL_DIR/$mod"
+	if [ -e "$src" ]; then
+		dest="$KEEP_MODULES_TMP/$mod"
+		mkdir -p "$(dirname "$dest")"
+		cp -a "$src" "$dest"
+	fi
+done
+
+rm -rf "$MODULES_KERNEL_DIR"
+mkdir -p "$MODULES_KERNEL_DIR"
+cp -a "$KEEP_MODULES_TMP"/. "$MODULES_KERNEL_DIR"/
+rm -rf "$KEEP_MODULES_TMP"
+
+# Regenerate module dependency files after pruning.
+depmod -b "$MKOSI_EXTRA_DIR/usr" "$VTL0_KREL" 2>/dev/null || true
+
+echo "Pruned module tree to $(du -sh "$MODULES_KERNEL_DIR" | cut -f1)"
+
+# Ensure kernel-install/ukify uses the custom VTL0 kernel image.
+VTL0_MODULES_DIR="$MKOSI_EXTRA_DIR/usr/lib/modules/$VTL0_KREL"
+mkdir -p "$VTL0_MODULES_DIR"
+cp -f "$VTL0_KERNEL_SRC" "$VTL0_MODULES_DIR/vmlinuz"
 
 VTL0_SHA256="$(sha256sum "$VTL0_KERNEL_SRC" | cut -d' ' -f1)"
 VTL1_SHA256="$(sha256sum "$MKOSI_EXTRA_DIR/$VTL1_INITRD_DEST_REL" | cut -d' ' -f1)"
@@ -87,11 +147,20 @@ PLANE_${VTL1_TARGET_PLANE}_LOAD_OFFSET=$VTL1_LOAD_OFFSET
 PLANE_${VTL1_TARGET_PLANE}_MEMORY_SIZE=$VTL1_MEMORY_SIZE
 PLANE_${VTL1_TARGET_PLANE}_VCPU_COUNT=$VTL1_VCPU_COUNT
 PLANE_${VTL1_TARGET_PLANE}_KERNEL=/$VTL1_INITRD_DEST_REL
+PLANE_${VTL1_TARGET_PLANE}_KERNEL_FORMAT=elf
+PLANE_${VTL1_TARGET_PLANE}_CMDLINE="$VTL1_CMDLINE"
 EOF
 
 cat > "$MKOSI_EXTRA_DIR/$DRACUT_CONF_REL" <<EOF
 # Embed the secure-plane kernel payload and VM planes config into the initrd.
 install_items+=" /$VTL1_INITRD_DEST_REL /$CONFIG_VM_PLANES_REL "
+# Only include modules needed for a KVM guest — keeps initrd small.
+hostonly="no"
+add_dracutmodules+=" kernel-modules base rootfs-block "
+omit_dracutmodules+=" plymouth multipath iscsi nfs cifs nbd dmraid mdraid "
+filesystems+=" ext4 vfat xfs "
+drivers+=" virtio virtio_pci virtio_blk virtio_scsi virtio_net virtio_console "
+drivers+=" sd_mod ahci ata_piix e1000 e1000e "
 EOF
 
 echo "[INSTRUMENTATION] Kernel verification details:"
@@ -120,6 +189,7 @@ echo "    Target plane: $VTL1_TARGET_PLANE"
 echo "    Load offset: $VTL1_LOAD_OFFSET"
 echo "    Memory size: $VTL1_MEMORY_SIZE"
 echo "    vCPU count: $VTL1_VCPU_COUNT"
+echo "    cmdline: $VTL1_CMDLINE"
 echo "  VTL0 kernelrelease: $VTL0_KREL"
 echo "  VTL1 kernelrelease: $VTL1_KREL"
 echo "  VTL0 SHA256: $VTL0_SHA256"
@@ -127,6 +197,17 @@ echo "  VTL1 SHA256: $VTL1_SHA256"
 echo ""
 echo "[INSTRUMENTATION] Dracut configuration for VTL1 embedding:"
 cat "$MKOSI_EXTRA_DIR/$DRACUT_CONF_REL"
+echo ""
+echo "Building vm-planes initrd cpio with config and kernel payload..."
+VM_PLANES_INITRD="$SCRIPT_DIR/vm-planes-initrd.cpio"
+VM_PLANES_INITRD_STAGING="$(mktemp -d)"
+mkdir -p "$VM_PLANES_INITRD_STAGING/boot/plane-${VTL1_TARGET_PLANE}"
+cp -f "$MKOSI_EXTRA_DIR/$CONFIG_VM_PLANES_REL" "$VM_PLANES_INITRD_STAGING/$CONFIG_VM_PLANES_REL"
+cp -f "$MKOSI_EXTRA_DIR/$VTL1_INITRD_DEST_REL" "$VM_PLANES_INITRD_STAGING/$VTL1_INITRD_DEST_REL"
+(cd "$VM_PLANES_INITRD_STAGING" && find . | cpio -o -H newc) > "$VM_PLANES_INITRD"
+rm -rf "$VM_PLANES_INITRD_STAGING"
+echo "  Created $VM_PLANES_INITRD ($(du -sh "$VM_PLANES_INITRD" | cut -f1))"
+
 echo ""
 echo "Building fedora-kvm.raw with mkosi..."
 (
