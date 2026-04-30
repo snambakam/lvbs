@@ -55,6 +55,21 @@ sed -i \
     "$BUILD_ROOT/.config"
 echo "CONFIG_INITRAMFS_SOURCE=\"$INITRAMFS_DIR\"" >> "$BUILD_ROOT/.config"
 
+# Disable SMP so the kernel doesn't need sub-1MB trampoline memory.
+# This lets the kernel boot with RAM only in the plane's GPA range.
+set_kconfig_bool CONFIG_SMP n
+
+# Set physical start to match the plane's load_offset + kernel offset.
+# The kernel loads at load_offset + CONFIG_PHYSICAL_START.
+sed -i \
+    -e '/^CONFIG_PHYSICAL_START=.*/d' \
+    "$BUILD_ROOT/.config"
+echo "CONFIG_PHYSICAL_START=0x1000000" >> "$BUILD_ROOT/.config"
+sed -i \
+    -e '/^CONFIG_PHYSICAL_ALIGN=.*/d' \
+    "$BUILD_ROOT/.config"
+echo "CONFIG_PHYSICAL_ALIGN=0x1000000" >> "$BUILD_ROOT/.config"
+
 make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" olddefconfig
 
 make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" -j$(nproc)
