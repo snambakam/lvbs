@@ -3,15 +3,97 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-IMAGE_DIR="$SCRIPT_DIR/../image"
+IMAGE_DIR="$SCRIPT_DIR/../../image"
 
 PLANE0_DISK="${PLANE0_DISK:-$IMAGE_DIR/fedora-kvm.raw}"
 ENABLE_PLANES="${ENABLE_PLANES:-1}"
-MEMORY_SIZE="${MEMORY_SIZE:-2G}"
+MEMORY_SIZE="${MEMORY_SIZE:-4G}"
+# Plane-0 vCPU count (plane-1 vCPUs are created dynamically via hypercall)
 SMP="${SMP:-3}"
-SERIAL_LOG_FILE="${SERIAL_LOG_FILE:-/tmp/plane-serial.log}"
-BIOS="${BIOS:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
-OVMF_VARS="${OVMF_VARS:-$IMAGE_DIR/OVMF_VARS_4M.fd}"
+# Total vCPU limit: plane-0 + plane-1 vCPUs (default: 3 + 1 = 4)
+MAXCPUS="${MAXCPUS:-4}"
+SERIAL_CONSOLE="-serial mon:stdio"
+BIOS="${BIOS:-/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2}"
+OVMF_VARS="${OVMF_VARS:-$IMAGE_DIR/OVMF_VARS_4M.qcow2}"
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Options:
+  --disk <path>           Plane 0 disk image path
+  --memory <size>         Guest memory size (for example: 2G)
+  --smp <count>           vCPU count
+  --bios <path>           OVMF firmware path
+  --ovmf-vars <path>      OVMF variables file path
+  -h, --help              Show this help
+
+Environment variable overrides are also supported:
+  PLANE0_DISK ENABLE_PLANES MEMORY_SIZE SMP BIOS OVMF_VARS
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --disk)
+            [[ $# -ge 2 ]] || {
+                echo "Missing value for $1" >&2
+                usage
+                exit 2
+            }
+            PLANE0_DISK="$2"
+            shift 2
+            ;;
+        --memory)
+            [[ $# -ge 2 ]] || {
+                echo "Missing value for $1" >&2
+                usage
+                exit 2
+            }
+            MEMORY_SIZE="$2"
+            shift 2
+            ;;
+        --smp)
+            [[ $# -ge 2 ]] || {
+                echo "Missing value for $1" >&2
+                usage
+                exit 2
+            }
+            SMP="$2"
+            shift 2
+            ;;
+        --bios)
+            [[ $# -ge 2 ]] || {
+                echo "Missing value for $1" >&2
+                usage
+                exit 2
+            }
+            BIOS="$2"
+            shift 2
+            ;;
+        --ovmf-vars)
+            [[ $# -ge 2 ]] || {
+                echo "Missing value for $1" >&2
+                usage
+                exit 2
+            }
+            OVMF_VARS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage
+            exit 2
+            ;;
+    esac
+done
+
+# Ensure OVMF variables file is present and up to date
+"$SCRIPT_DIR/get-firmware-vars.sh"
 
 for required_file in "$PLANE0_DISK" "$BIOS" "$OVMF_VARS"; do
     if [[ ! -f "$required_file" ]]; then
@@ -20,11 +102,6 @@ for required_file in "$PLANE0_DISK" "$BIOS" "$OVMF_VARS"; do
     fi
 done
 
-PLANE_ARGS=()
-if [[ "$ENABLE_PLANES" == "1" ]]; then
-    PLANE_ARGS+=(-enable-planes)
-fi
-
 echo "Launching QEMU with VM planes (UKI secure boot):"
 echo "  Disk image:       $PLANE0_DISK"
 echo "  OVMF firmware:    $BIOS"
@@ -32,7 +109,6 @@ echo "  OVMF variables:   $OVMF_VARS"
 echo "  Memory:           $MEMORY_SIZE"
 echo "  SMP:              $SMP"
 echo "  Planes:           $(if [[ "$ENABLE_PLANES" == "1" ]]; then echo enabled; else echo disabled; fi)"
-echo "  Serial output:    $SERIAL_LOG_FILE"
 
 if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
     echo "qemu-system-x86_64 was not found in PATH." >&2
@@ -45,10 +121,9 @@ qemu-system-x86_64 \
     -machine q35 \
     -cpu host \
     -m "$MEMORY_SIZE" \
-    -smp "$SMP" \
+    -smp "$SMP",maxcpus="$MAXCPUS" \
     -nographic \
     -drive file="$PLANE0_DISK",format=raw,if=virtio \
-    -drive if=pflash,format=raw,readonly=on,file="$BIOS" \
-    -drive if=pflash,format=raw,file="$OVMF_VARS" \
-    -serial file="$SERIAL_LOG_FILE" \
-    "${PLANE_ARGS[@]}"
+    -drive if=pflash,format=qcow2,readonly=on,file="$BIOS" \
+    -drive if=pflash,format=qcow2,file="$OVMF_VARS" \
+    $SERIAL_CONSOLE
