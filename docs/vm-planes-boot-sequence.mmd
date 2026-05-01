@@ -1,0 +1,132 @@
+---
+title: VM Planes Boot Sequence
+---
+sequenceDiagram
+    autonumber
+
+    participant Build as Build System
+    participant QEMU as QEMU (VMM)
+    participant KVM as KVM (Host Kernel)
+    participant P0 as Plane 0<br/>(Guest Kernel)
+    participant P1 as Plane 1<br/>(Secure Kernel)
+
+    %% ── Build Phase ──
+    rect rgb(240, 248, 255)
+        Note over Build: Build Phase
+        Build->>Build: build.sh: Build Plane 0 kernel<br/>(bzImage, CONFIG_VM_PLANES=y)
+        Build->>Build: build-sk.sh: Build Plane 1 kernel<br/>(vmlinux.bin, CONFIG_SMP=n,<br/>PHYSICAL_START=0x1000000)
+        Build->>Build: build-vm-planes-image.sh:<br/>Generate config-vm-planes<br/>(PLANE_COUNT=2, MEMORY_SIZE,<br/>VCPU_COUNT, KERNEL_FORMAT=elf)
+        Build->>Build: Pack vm-planes-initrd.cpio<br/>(/config-vm-planes +<br/>/boot/plane-1/vmlinux)
+        Build->>Build: mkosi: Build Fedora disk image<br/>(UKI = systemd-stub + bzImage + initrd)
+    end
+
+    %% ── QEMU Startup ──
+    rect rgb(255, 250, 240)
+        Note over QEMU,KVM: QEMU Startup and VM Creation
+        QEMU->>KVM: KVM_CREATE_VM
+        KVM-->>KVM: kvm_create_vm_plane(kvm, 0)<br/>alloc kvm_plane, init vcpu_array,<br/>kvm_arch_init_plane()
+        KVM-->>QEMU: vm_fd
+
+        loop For each of 3 Plane-0 vCPUs
+            QEMU->>KVM: KVM_CREATE_VCPU(vcpu_id)
+            KVM-->>KVM: alloc kvm_vcpu in planes[0]<br/>vcpu->plane = 0, vcpu->plane0 = self
+            KVM-->>QEMU: vcpu_fd
+        end
+
+        QEMU->>QEMU: kvm_arch_init(): Enable userspace<br/>exit for HC 13 and HC 14
+    end
+
+    %% ── Plane 0 Boot ──
+    rect rgb(240, 255, 240)
+        Note over QEMU,P0: Plane 0 Boot
+        QEMU->>KVM: KVM_RUN (plane-0 vCPUs)
+        KVM->>P0: Execute OVMF firmware
+        P0->>P0: UEFI loads UKI from disk<br/>(systemd-stub then bzImage + initrd)
+        P0->>P0: Linux kernel boot<br/>(cmdline: enable-vm-planes=1)
+        P0->>P0: parse_enable_vm_planes()<br/>enable_vm_planes_requested = true
+        P0->>P0: Unpack initramfs<br/>(includes vm-planes-initrd.cpio)
+    end
+
+    %% ── VM Planes Config Discovery ──
+    rect rgb(255, 255, 240)
+        Note over P0: VM Planes Config Discovery
+        P0->>P0: kernel_init_freeable()<br/>calls arch_init_vm_planes()
+        P0->>P0: vm_planes_get_cfg():<br/>filp_open("/config-vm-planes")<br/>then kernel_read()
+        P0->>P0: parse_vm_planes_kconfig():<br/>PLANE_COUNT=2,<br/>PLANE_1_MEMORY_SIZE=0x60000000,<br/>PLANE_1_VCPU_COUNT=1,<br/>PLANE_1_KERNEL_FORMAT=elf
+        P0->>P0: load_vm_plane_kernels():<br/>Read /boot/plane-1/vmlinux (ELF)<br/>load PT_LOAD segments<br/>compute entry_point
+    end
+
+    %% ── HC 13: VM Planes Config ──
+    rect rgb(255, 240, 245)
+        Note over P0,QEMU: Hypercall 13: VM Planes Config
+        P0->>KVM: kvm_hypercall2(<br/>KVM_HC_VM_PLANES_CONFIG=13,<br/>phys_addr_of_cfg, plane_count)
+        KVM->>KVM: kvm_emulate_hypercall()<br/>user_exit_on_hypercall(13)
+        KVM->>QEMU: KVM_EXIT_HYPERCALL<br/>(nr=13, args[0]=cfg GPA)
+
+        QEMU->>QEMU: kvm_handle_hc_vm_planes_config():<br/>address_space_read() parse<br/>vm_plane_config from guest RAM
+
+        QEMU->>KVM: KVM_CREATE_PLANE(plane_id=1)<br/>ioctl _IO(0xAE, 0xd6)
+        KVM-->>KVM: kvm_create_vm_plane(kvm, 1)<br/>alloc kvm_plane, init vcpu_array,<br/>kvm_arch_init_plane()
+        KVM-->>QEMU: plane_fd
+
+        QEMU->>QEMU: memory_region_init_ram(<br/>"vm-plane-ram-1", 0x60000000)
+        QEMU->>KVM: KVM_SET_USER_MEMORY_REGION<br/>(plane-1 RAM slot)
+
+        QEMU->>KVM: KVM_CREATE_VCPU(vcpu_id=3)
+        KVM-->>QEMU: vcpu_fd
+        QEMU->>KVM: KVM_SET_CPUID2 (vcpu_fd)
+        QEMU->>KVM: KVM_CREATE_VCPU_PLANE<br/>ioctl _IO(0xAE, 0xd7)<br/>(plane_fd, vcpu_fd)
+        KVM-->>KVM: Create plane-1 vCPU<br/>shares kvm_run page with plane-0<br/>vcpu->plane0 = plane0_vcpu
+
+        QEMU->>KVM: hypercall.ret = 0
+        KVM->>P0: Resume plane-0 vCPU
+    end
+
+    %% ── HC 14: VM Planes Activate ──
+    rect rgb(245, 240, 255)
+        Note over P0,P1: Hypercall 14: VM Planes Activate
+        P0->>KVM: kvm_hypercall2(<br/>KVM_HC_VM_PLANES_ACTIVATE=14,<br/>phys_addr_of_cfg, plane_count)
+        KVM->>QEMU: KVM_EXIT_HYPERCALL<br/>(nr=14, args[0]=cfg GPA)
+
+        QEMU->>QEMU: kvm_handle_hc_vm_planes_activate()
+
+        Note over QEMU: Write boot infrastructure<br/>into plane-1 guest RAM
+        QEMU->>QEMU: Write cmdline at top - 0x1000
+        QEMU->>QEMU: Write boot_params (zero-page)<br/>at top - 0x2000<br/>(boot_flag=0xAA55, e820 map,<br/>cmd_line_ptr)
+        QEMU->>QEMU: Write identity-mapped page tables<br/>at top - 0x10000<br/>(PML4, PDPT, PD with 2MB pages)
+        QEMU->>QEMU: Write GDT at pt_base + 0x6000<br/>(64-bit code=0x10, data=0x18)
+
+        Note over QEMU,KVM: Initialize plane-1 vCPU state
+        QEMU->>KVM: KVM_SET_SREGS (vcpu_fd)<br/>CR0=PE+ET+NE+WP+PG<br/>CR4=PAE, EFER=SCE+LME+LMA+NXE<br/>CR3=PML4 GPA, CS.L=1 (64-bit)
+        QEMU->>KVM: KVM_SET_REGS (vcpu_fd)<br/>RIP=entry_point<br/>RSP=load_offset+memory_size<br/>RSI=boot_params GPA
+        QEMU->>KVM: KVM_SET_MP_STATE(RUNNABLE)
+
+        Note over QEMU: Spawn plane-1 vCPU thread
+        QEMU->>KVM: KVM_RUN (plane-1 vCPU)
+        KVM->>P1: Begin execution at entry_point<br/>(64-bit long mode)
+
+        P1->>P1: Linux startup_64<br/>RSI points to boot_params cmdline
+        P1->>P1: earlycon: uart8250 at 0x3f8
+
+        loop Serial output
+            P1->>KVM: OUT 0x3f8 (serial byte)
+            KVM->>QEMU: KVM_EXIT_IO
+            QEMU->>QEMU: Write to /tmp/plane1-serial.log
+            QEMU->>KVM: KVM_RUN (continue)
+        end
+
+        P1->>P1: Unpack built-in initramfs<br/>Run /init prints Plane-1 secure<br/>kernel ready
+        P1->>KVM: HLT (idle)
+        KVM->>QEMU: KVM_EXIT_HLT
+        QEMU->>QEMU: Signal boot complete<br/>(halted_count++)
+
+        QEMU->>KVM: hypercall.ret = 0
+        KVM->>P0: Resume plane-0 vCPU
+    end
+
+    %% ── Normal Operation ──
+    rect rgb(240, 255, 240)
+        Note over P0,P1: Normal Operation
+        P0->>P0: kernel_init_freeable() continues<br/>mount rootfs then start systemd
+        Note over P0,P1: Plane 0 and Plane 1<br/>run concurrently
+    end
