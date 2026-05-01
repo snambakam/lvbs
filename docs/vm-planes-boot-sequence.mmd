@@ -53,7 +53,6 @@ sequenceDiagram
         P0->>P0: kernel_init_freeable()<br/>calls arch_init_vm_planes()
         P0->>P0: vm_planes_get_cfg():<br/>filp_open("/config-vm-planes")<br/>then kernel_read()
         P0->>P0: parse_vm_planes_kconfig():<br/>PLANE_COUNT=2,<br/>PLANE_1_MEMORY_SIZE=0x60000000,<br/>PLANE_1_VCPU_COUNT=1,<br/>PLANE_1_KERNEL_FORMAT=elf
-        P0->>P0: load_vm_plane_kernels():<br/>Read /boot/plane-1/vmlinux (ELF)<br/>load PT_LOAD segments<br/>compute entry_point
     end
 
     %% ── HC 13: VM Planes Config ──
@@ -80,6 +79,14 @@ sequenceDiagram
 
         QEMU->>KVM: hypercall.ret = 0
         KVM->>P0: Resume plane-0 vCPU
+    end
+
+    %% ── Plane 1 Kernel Loading ──
+    rect rgb(255, 255, 240)
+        Note over P0: Plane 1 Kernel Loading (into memory allocated by QEMU)
+        P0->>P0: load_vm_plane_kernels():<br/>Read /boot/plane-1/vmlinux (ELF)<br/>from initrd rootfs via VFS
+        P0->>P0: For each PT_LOAD segment:<br/>copy_to_early_mem() via early_memremap<br/>into plane-1 RAM at load_offset + p_paddr
+        P0->>P0: Compute entry_point from ELF e_entry
     end
 
     %% ── HC 14: VM Planes Activate ──
