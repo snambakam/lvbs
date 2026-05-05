@@ -55,9 +55,10 @@ sed -i \
     "$BUILD_ROOT/.config"
 echo "CONFIG_INITRAMFS_SOURCE=\"$INITRAMFS_DIR\"" >> "$BUILD_ROOT/.config"
 
-# Disable SMP so the kernel doesn't need sub-1MB trampoline memory.
-# This lets the kernel boot with RAM only in the plane's GPA range.
-set_kconfig_bool CONFIG_SMP n
+# Enable SMP so CALL_FUNCTION_VECTOR (0xfc) IDT handler is compiled in.
+# Without it, cross-plane interrupts at vector 0xfc hit the spurious handler.
+# The plane cmdline uses maxcpus=1 to boot with only the BSP.
+set_kconfig_bool CONFIG_SMP y
 
 # Set physical start to match the plane's load_offset + kernel offset.
 # The kernel loads at load_offset + CONFIG_PHYSICAL_START.
