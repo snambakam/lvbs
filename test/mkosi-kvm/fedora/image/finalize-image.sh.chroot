@@ -28,7 +28,7 @@ EOF
 
 # Set kernel command line for console and logging
 cat > /etc/kernel/cmdline <<'EOF'
-earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 console=tty0 root=/dev/vda2 rw rd.systemd.show_status=true enable-vm-planes=1
+earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 console=tty0 root=/dev/vda2 rw rd.systemd.show_status=true lsm=bpf,lockdown,yama,integrity systemd.gpt_auto=0 enable-vm-planes=1
 EOF
 
 echo "[INSTRUMENTATION] Kernel command line configured:"
