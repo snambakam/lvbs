@@ -18,7 +18,7 @@ VTL0_KERNEL_SRC="${VTL0_KERNEL_SRC:-$VTL0_KERNEL_SRC_DEFAULT}"
 VTL1_KERNEL_SRC="${VTL1_KERNEL_SRC:-$VTL1_KERNEL_SRC_DEFAULT}"
 
 # Physical address where VTL1 should be loaded by the VTL0 launcher.
-VTL1_LOAD_OFFSET_DEFAULT="0x40000000"
+VTL1_LOAD_OFFSET_DEFAULT="0x0"
 VTL1_LOAD_OFFSET="${VTL1_LOAD_OFFSET:-$VTL1_LOAD_OFFSET_DEFAULT}"
 
 # Verified VTL1 execution must enter Plane 1.
@@ -26,9 +26,9 @@ VTL1_TARGET_PLANE_DEFAULT="1"
 VTL1_TARGET_PLANE="${VTL1_TARGET_PLANE:-$VTL1_TARGET_PLANE_DEFAULT}"
 VTL1_VCPU_COUNT_DEFAULT="1"
 VTL1_VCPU_COUNT="${VTL1_VCPU_COUNT:-$VTL1_VCPU_COUNT_DEFAULT}"
-VTL1_MEMORY_SIZE_DEFAULT="0x40000000"
+VTL1_MEMORY_SIZE_DEFAULT="0x60000000"
 VTL1_MEMORY_SIZE="${VTL1_MEMORY_SIZE:-$VTL1_MEMORY_SIZE_DEFAULT}"
-VTL1_CMDLINE_DEFAULT="earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 loglevel=7 ignore_loglevel nosmp rdinit=/init"
+VTL1_CMDLINE_DEFAULT="earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 loglevel=7 nosmp noefi rdinit=/init panic=1"
 # Plane 1 cmdline is sealed into config-vm-planes (inside the UKI initrd).
 # Keep this build-time constant here so there is no runtime override path.
 VTL1_CMDLINE="$VTL1_CMDLINE_DEFAULT"
