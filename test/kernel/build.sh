@@ -6,12 +6,37 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 build() {
 	if [ ! -f "$BUILD_ROOT/.config" ]; then
-		cp $LINUX_KERNEL_CONFIG "$BUILD_ROOT/.config"
+		# Find the latest Fedora kernel config as the base
+		local host_config="$LINUX_KERNEL_CONFIG"
+		if [ ! -f "$host_config" ]; then
+			host_config=$(ls -t /boot/config-* 2>/dev/null | head -1)
+		fi
+		if [ -z "$host_config" ] || [ ! -f "$host_config" ]; then
+			echo "Error: No kernel config found"
+			exit 1
+		fi
+		echo "Using base config: $host_config"
+		cp "$host_config" "$BUILD_ROOT/.config"
 	fi
 
 	if ! grep -q "^CONFIG_VM_PLANES=y" "$BUILD_ROOT/.config"; then
 		sed -i '/^# CONFIG_VM_PLANES is not set/d' "$BUILD_ROOT/.config"
 		echo "CONFIG_VM_PLANES=y" >> "$BUILD_ROOT/.config"
+	fi
+
+	if ! grep -q "^CONFIG_BPF_LSM=y" "$BUILD_ROOT/.config"; then
+		sed -i '/^# CONFIG_BPF_LSM is not set/d' "$BUILD_ROOT/.config"
+		echo "CONFIG_BPF_LSM=y" >> "$BUILD_ROOT/.config"
+	fi
+
+	if ! grep -q "^CONFIG_DEBUG_INFO_BTF=y" "$BUILD_ROOT/.config"; then
+		sed -i '/^# CONFIG_DEBUG_INFO_BTF is not set/d' "$BUILD_ROOT/.config"
+		echo "CONFIG_DEBUG_INFO_BTF=y" >> "$BUILD_ROOT/.config"
+	fi
+
+	if ! grep -q "^CONFIG_BPF_JIT=y" "$BUILD_ROOT/.config"; then
+		sed -i '/^# CONFIG_BPF_JIT is not set/d' "$BUILD_ROOT/.config"
+		echo "CONFIG_BPF_JIT=y" >> "$BUILD_ROOT/.config"
 	fi
 
 	make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" olddefconfig
