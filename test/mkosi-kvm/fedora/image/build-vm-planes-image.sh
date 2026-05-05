@@ -28,7 +28,7 @@ VTL1_VCPU_COUNT_DEFAULT="1"
 VTL1_VCPU_COUNT="${VTL1_VCPU_COUNT:-$VTL1_VCPU_COUNT_DEFAULT}"
 VTL1_MEMORY_SIZE_DEFAULT="0x60000000"
 VTL1_MEMORY_SIZE="${VTL1_MEMORY_SIZE:-$VTL1_MEMORY_SIZE_DEFAULT}"
-VTL1_CMDLINE_DEFAULT="earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 loglevel=7 nosmp noefi rdinit=/init panic=1"
+VTL1_CMDLINE_DEFAULT="earlycon=uart8250,io,0x3f8,115200n8 console=ttyS0 loglevel=7 maxcpus=1 noefi rdinit=/init panic=1"
 # Plane 1 cmdline is sealed into config-vm-planes (inside the UKI initrd).
 # Keep this build-time constant here so there is no runtime override path.
 VTL1_CMDLINE="$VTL1_CMDLINE_DEFAULT"
