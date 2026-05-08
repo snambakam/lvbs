@@ -34,6 +34,11 @@ build() {
 		echo "CONFIG_VBS_KVM_PLANES=y" >> "$BUILD_ROOT/.config"
 	fi
 
+	if ! grep -q "^CONFIG_VBS_HEKI=y" "$BUILD_ROOT/.config"; then
+		sed -i '/^# CONFIG_VBS_HEKI is not set/d' "$BUILD_ROOT/.config"
+		echo "CONFIG_VBS_HEKI=y" >> "$BUILD_ROOT/.config"
+	fi
+
 	if ! grep -q "^CONFIG_BPF_LSM=y" "$BUILD_ROOT/.config"; then
 		sed -i '/^# CONFIG_BPF_LSM is not set/d' "$BUILD_ROOT/.config"
 		echo "CONFIG_BPF_LSM=y" >> "$BUILD_ROOT/.config"
