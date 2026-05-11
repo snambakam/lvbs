@@ -83,8 +83,12 @@ case "$CMD" in
 	"install")
 		install
 		;;
+	"clean")
+		make -C $LINUX_SRC_ROOT O="$BUILD_ROOT" clean
+		;;
 	*)
 		echo "Error: unrecognized command - $CMD"
+		echo "Usage: $0 [build|install|clean]"
 		exit 1
 		;;
 esac
