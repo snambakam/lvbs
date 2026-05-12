@@ -1,0 +1,76 @@
+From b63dfe2ef84ea7d36a7e7aa929d351500379ad6d Mon Sep 17 00:00:00 2001
+From: Sriram Nambakam <snambakam@linux.microsoft.com>
+Date: Tue, 12 May 2026 11:31:00 -0700
+Subject: [PATCH 00/49] *** SUBJECT HERE ***
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+*** BLURB HERE ***
+
+Paolo Bonzini (29):
+  Documentation: kvm: introduce "VM plane" concept
+  KVM: API definitions for plane userspace exit
+  KVM: add plane info to structs
+  KVM: introduce struct kvm_arch_plane
+  KVM: add plane support to KVM_SIGNAL_MSI
+  KVM: move mem_attr_array to kvm_plane
+  KVM: do not use online_vcpus to test vCPU validity
+  KVM: move vcpu_array to struct kvm_plane
+  KVM: implement plane file descriptors ioctl and creation
+  KVM: share statistics for same vCPU id on different planes
+  KVM: anticipate allocation of dirty ring
+  KVM: share dirty ring for same vCPU id on different planes
+  KVM: implement vCPU creation for extra planes
+  KVM: pass plane to kvm_arch_vcpu_create
+  KVM: x86: pass vcpu to kvm_pv_send_ipi()
+  KVM: x86: split "if" in __kvm_set_or_clear_apicv_inhibit
+  KVM: x86: block creating irqchip if planes are active
+  KVM: x86: track APICv inhibits per plane
+  KVM: x86: move APIC map to kvm_arch_plane
+  KVM: x86: add planes support for interrupt delivery
+  KVM: x86: add infrastructure to share FPU across planes
+  KVM: x86: implement initial plane support
+  KVM: x86: extract kvm_post_set_cpuid
+  KVM: x86: initialize CPUID for non-default planes
+  KVM: x86: handle interrupt priorities for planes
+  KVM: x86: enable up to 16 planes
+  selftests: kvm: introduce basic test for VM planes
+  selftests: kvm: add plane infrastructure
+  selftests: kvm: add x86-specific plane test
+
+Sriram Nambakam (20):
+  Fix merge issue - Remove duplicate definition for
+    kvm_arch_has_irq_bypass
+  Fix compilation
+  Fix compile error
+  Fix compile errors
+  Fix condition - Increment the counter and use online_vcpus for plane-0
+    (normal) vCPUs - mirror plane0_vcpu->vcpu_idx only for
+    secondary-plane vCPUs.
+  Initial support for VM Planes - Add kernel config for CONFIG_VM_PLANES
+    - Parse vm plane config from initrd for plane configuration - Make
+    hypercalls to allocate memory for the vm planes.
+  Use vcpu count from the plane configuration
+  skip processing plane configuration for plane 0 - plane 0 is the boot
+    plane
+  Add plane config param to specify kernel image format
+  Activate the VM Planes through the Hypervisor - Using KVM as the VMM
+  allow the command line to be specified for kernels in other planes
+  Various changes to support VM Planes.
+  Add a Virtualization Based Security (VBS) framework. - Add backends
+    for AMD SEV-SNP, Intel TDX, Arm CCA and KVM Planes. - Support VTL on
+    Hyper-V in addition to Planes on KVM.
+  Add a inter-plane communication mechanism through KVM. - model this to
+    use a single page similar to SEV-SNP
+  KVM: Add per-plane memory attribute support for cross-plane EPT
+    protection
+  KVM: x86: Add KVM_HC_VBS_VTL_CALL hypercall for VBS inter-plane calls
+  vbs: Add HEKI kernel sealing and fix KVM plane memory attribute guards
+  vbs: Add module authentication via VBS/HEKI
+  vbs: Add kexec validation and make module auth non-fatal
+  Merge branch 'master' into vm-planes
+
+-- 
+2.53.0
+
