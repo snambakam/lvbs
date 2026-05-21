@@ -2,10 +2,24 @@
 
 ## Prerequisites
 
-- Kernel source checked out at `$HOME/workspaces/linux` (or set `LINUX_SRC_ROOT`)
+- Kernel source from https://github.com/snambakam/linux (`vm-planes` branch) checked out at `$HOME/workspaces/linux` (or set `LINUX_SRC_ROOT`)
+
+  ```bash
+  git clone -b vm-planes https://github.com/snambakam/linux $HOME/workspaces/linux
+  ```
+- QEMU with VM Planes support from https://github.com/snambakam/qemu (`vm-planes` branch)
+
+  ```bash
+  git clone -b vm-planes https://github.com/snambakam/qemu $HOME/workspaces/qemu
+  cd $HOME/workspaces/qemu
+  mkdir build && cd build
+  ../configure --target-list=x86_64-softmmu --enable-kvm
+  make -j$(nproc)
+  sudo make install
+  ```
+
 - Build tools: `gcc`, `make`, `objcopy`
 - `mkosi` installed and in `PATH`
-- `qemu-system-x86_64` with KVM support
 
 ## Steps
 
