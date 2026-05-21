@@ -1,0 +1,36 @@
+From 91b5c784170e51c0547957c27f2ba07863737257 Mon Sep 17 00:00:00 2001
+From: Sriram Nambakam <snambakam@linux.microsoft.com>
+Date: Tue, 12 May 2026 11:31:11 -0700
+Subject: [PATCH 00/11] *** SUBJECT HERE ***
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+*** BLURB HERE ***
+
+Sriram Nambakam (11):
+  Introduce VM Plane support with KVM
+  Activate the planes configuration - allocate resources for each plane
+    - initialize planes in KVM
+  Iterate through each plane (id > 0) and load the kernel. - wait till
+    all the vCPUs associated with that plane halt
+  enable hypercalls related to vm planes
+  vm_planes: fix plane vCPU initialization and memory model
+  Remove comments specific to CONFIG_SMP - the kernel in plane 1 could
+    be build with CONFIG_SMP=y
+  vm_planes: Add VBS VTL call handling and plane memory sealing
+  vm_planes: Implement VBS SEAL_KERNEL and PROTECT_MEMORY dispatchers
+  vm_planes: Add module authentication handlers for VBS VTL calls
+  vm_planes: Add kexec validation and invalidation VBS handlers
+  update definition for KVM_CAP_VM_PLANES - match definition in kernel
+
+ accel/kvm/kvm-all.c                       |   24 +
+ include/standard-headers/linux/kvm_para.h |    5 +-
+ include/system/kvm_int.h                  |   14 +
+ linux-headers/linux/kvm.h                 |   13 +
+ target/i386/kvm/kvm.c                     | 1393 +++++++++++++++++++++
+ 5 files changed, 1448 insertions(+), 1 deletion(-)
+
+-- 
+2.53.0
+
