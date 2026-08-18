@@ -12,8 +12,8 @@
 # QEMU_TARGETS (e.g. "x86_64-softmmu,aarch64-softmmu").
 #
 # Build prerequisites (Fedora): python3, ninja-build, meson, glib2-devel,
-# pixman-devel, and the usual C toolchain. configure will report any missing
-# dependency.
+# pixman-devel, libslirp-devel, and the usual C toolchain. configure will report
+# any missing dependency.
 #
 set -euo pipefail
 
@@ -45,6 +45,7 @@ configure() {
 		# shellcheck disable=SC2086
 		( cd "$BUILD_DIR" && "$QEMU_SRC_ROOT/configure" \
 			--target-list="$QEMU_TARGETS" \
+			--enable-slirp \
 			$QEMU_CONFIGURE_EXTRA )
 	fi
 }
